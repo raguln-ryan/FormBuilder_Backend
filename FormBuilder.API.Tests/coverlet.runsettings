@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+          <DataCollectionRunSettings>
+            <DataCollectors>
+              <DataCollector friendlyName="XPlat code coverage">
+                <Configuration>
+                  <Format>cobertura,opencover</Format>
+          
+                  <!-- Exclude patterns -->
+                  <Exclude>
+                    [*]*.Migrations.*,
+                    [*]*.Configurations.*,
+                    [FormBuilder.API]FormBuilder.API.Program,
+                    [FormBuilder.API]FormBuilder.API.Startup,
+                    [FormBuilder.API.Tests]*
+                  </Exclude>
+          
+                  <!-- Exclude by file patterns -->
+                  <ExcludeByFile>**/Migrations/*.cs;**/Configurations/*.cs;**/Program.cs;**/Startup.cs</ExcludeByFile>
+          
+                  <!-- Exclude by attributes -->
+                  <ExcludeByAttribute>CompilerGeneratedAttribute,GeneratedCodeAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+          
+                </Configuration>
+              </DataCollector>
+            </DataCollectors>
+          </DataCollectionRunSettings>
+</RunSettings>
