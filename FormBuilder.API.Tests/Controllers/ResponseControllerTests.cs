@@ -1,15 +1,17 @@
-using Xunit;
-using Moq;
-using Microsoft.AspNetCore.Mvc;
-using FormBuilder.API.Controllers;
-using FormBuilder.API.Business.Interfaces;
-using FormBuilder.API.DTOs.Form;
-using FormBuilder.API.Common;
-using FormBuilder.API.Models;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using FormBuilder.API.Business.Interfaces;
+using FormBuilder.API.Common;
+using FormBuilder.API.Controllers;
+using FormBuilder.API.DTOs.Form;
+using FormBuilder.API.Models;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Moq;
+using Xunit;
+using Newtonsoft.Json;
 
 namespace FormBuilder.API.Tests.Controllers
 {
@@ -22,24 +24,23 @@ namespace FormBuilder.API.Tests.Controllers
         {
             _responseManagerMock = new Mock<IResponseManager>();
             _controller = new ResponseController(_responseManagerMock.Object);
-            SetupUserClaims("TestUser", Roles.Learner);
-        }
 
-        private void SetupUserClaims(string name, string role)
-        {
+            // Setup default user context
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, name),
-                new Claim(ClaimTypes.Role, role),
-                new Claim(ClaimTypes.NameIdentifier, "1")
+                new Claim(ClaimTypes.NameIdentifier, "1"),
+                new Claim(ClaimTypes.Role, Roles.Learner)
             };
-            var identity = new ClaimsIdentity(claims, "Test");
-            var principal = new ClaimsPrincipal(identity);
+            var identity = new ClaimsIdentity(claims, "TestAuth");
+            var claimsPrincipal = new ClaimsPrincipal(identity);
+            
             _controller.ControllerContext = new ControllerContext
             {
-                HttpContext = new DefaultHttpContext { User = principal }
+                HttpContext = new DefaultHttpContext { User = claimsPrincipal }
             };
         }
+
+        #region GetPublishedForms Tests
 
         [Fact]
         public void GetPublishedForms_ReturnsOkWithForms()
@@ -47,9 +48,16 @@ namespace FormBuilder.API.Tests.Controllers
             // Arrange
             var forms = new List<FormLayoutResponseDto>
             {
-                new FormLayoutResponseDto(),
-                new FormLayoutResponseDto()
+                new FormLayoutResponseDto
+                {
+                    FormId = "form1",
+                    Title = "Test Form",
+                    Description = "Test Description",
+                    Status = FormStatusDto.Published,
+                    Questions = new List<QuestionDto>()
+                }
             };
+
             _responseManagerMock.Setup(x => x.GetPublishedForms())
                 .Returns(forms);
 
@@ -58,19 +66,50 @@ namespace FormBuilder.API.Tests.Controllers
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(200, okResult.StatusCode);
             Assert.Equal(forms, okResult.Value);
         }
 
         [Fact]
-        public void SubmitResponse_ValidSubmission_ReturnsOk()
+        public void GetPublishedForms_EmptyList_ReturnsOkWithEmptyList()
+        {
+            // Arrange
+            _responseManagerMock.Setup(x => x.GetPublishedForms())
+                .Returns(new List<FormLayoutResponseDto>());
+
+            // Act
+            var result = _controller.GetPublishedForms();
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returnedForms = Assert.IsType<List<FormLayoutResponseDto>>(okResult.Value);
+            Assert.Empty(returnedForms);
+        }
+
+        #endregion
+
+        #region SubmitResponse Tests
+
+        [Fact]
+        public void SubmitResponse_Success_ReturnsOkWithResponseId()
         {
             // Arrange
             var dto = new FormSubmissionDto
             {
-                FormId = "1",
-                Answers = new List<AnswerDto>()
+                FormId = "form1",
+                Answers = new List<AnswerDto>
+                {
+                    new AnswerDto { QuestionId = "q1", Answer = "Test Answer" }
+                }
             };
-            var response = new Response { Id = 1 };
+
+            var response = new Response 
+            { 
+                Id = 123,
+                FormId = "form1",
+                UserId = 1
+            };
+
             _responseManagerMock.Setup(x => x.SubmitResponse(dto, It.IsAny<ClaimsPrincipal>()))
                 .Returns((true, "Response submitted successfully", response));
 
@@ -79,49 +118,95 @@ namespace FormBuilder.API.Tests.Controllers
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            dynamic okValue = okResult.Value;
-            Assert.True(okValue.success);
-            Assert.Equal("Response submitted successfully", okValue.message);
-            Assert.Equal(1, okValue.responseId);
+            var json = JsonConvert.SerializeObject(okResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.True((bool)value.success);
+            Assert.Equal("Response submitted successfully", (string)value.message);
+            Assert.Equal(123, (int)value.responseId);
         }
 
         [Fact]
-        public void SubmitResponse_InvalidForm_ReturnsBadRequest()
+        public void SubmitResponse_Failure_ReturnsBadRequest()
         {
             // Arrange
             var dto = new FormSubmissionDto
             {
-                FormId = "999",
-                Answers = new List<AnswerDto>()
+                FormId = "form1"
             };
+
             _responseManagerMock.Setup(x => x.SubmitResponse(dto, It.IsAny<ClaimsPrincipal>()))
-                .Returns((false, "Form not found", null));
+                .Returns((false, "Validation failed", null));
 
             // Act
             var result = _controller.SubmitResponse(dto);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            dynamic badRequestValue = badRequestResult.Value;
-            Assert.False(badRequestValue.success);
-            Assert.Equal("Form not found", badRequestValue.message);
+            var json = JsonConvert.SerializeObject(badRequestResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.False((bool)value.success);
+            Assert.Equal("Validation failed", (string)value.message);
         }
 
+       
         [Fact]
-        public void GetResponsesByForm_ValidFormId_ReturnsOk()
+        public void SubmitResponse_WithFileUploads_Success()
         {
             // Arrange
-            SetupUserClaims("Admin", Roles.Admin);
-            var responses = new List<Response>
+            var dto = new FormSubmissionDto
             {
-                new Response { Id = 1, FormId = "1" },
-                new Response { Id = 2, FormId = "1" }
+                FormId = "form1",
+                FileUploads = new List<FileUploadDto>
+                {
+                    new FileUploadDto
+                    {
+                        QuestionId = "q1",
+                        FileName = "test.pdf",
+                        FileType = "application/pdf",
+                        FileSize = 1024,
+                        Base64Content = "base64string"
+                    }
+                }
             };
-            _responseManagerMock.Setup(x => x.GetResponsesByForm("1"))
-                .Returns(responses);
+
+            var response = new Response { Id = 456 };
+
+            _responseManagerMock.Setup(x => x.SubmitResponse(dto, It.IsAny<ClaimsPrincipal>()))
+                .Returns((true, "Response with files submitted", response));
 
             // Act
-            var result = _controller.GetResponsesByForm("1");
+            var result = _controller.SubmitResponse(dto);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var json = JsonConvert.SerializeObject(okResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.Equal(456, (int)value.responseId);
+        }
+
+        #endregion
+
+        #region GetResponsesByForm Tests
+
+        [Fact]
+        public void GetResponsesByForm_ReturnsOkWithResponses()
+        {
+            // Arrange
+            var formId = "form1";
+            var responses = new List<Response>
+            {
+                new Response { Id = 1, FormId = formId },
+                new Response { Id = 2, FormId = formId }
+            };
+
+            _responseManagerMock.Setup(x => x.GetResponsesByForm(formId))
+                .Returns(responses);
+
+            // Setup admin context
+            SetupAdminContext();
+
+            // Act
+            var result = _controller.GetResponsesByForm(formId);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
@@ -129,16 +214,46 @@ namespace FormBuilder.API.Tests.Controllers
         }
 
         [Fact]
-        public void GetResponseById_ExistingId_ReturnsOk()
+        public void GetResponsesByForm_EmptyList_ReturnsOkWithEmptyList()
         {
             // Arrange
-            SetupUserClaims("Admin", Roles.Admin);
-            var response = new Response { Id = 1, FormId = "1" };
-            _responseManagerMock.Setup(x => x.GetResponseById("1"))
-                .Returns((true, "Response found", response));
+            var formId = "nonexistent";
+            _responseManagerMock.Setup(x => x.GetResponsesByForm(formId))
+                .Returns(new List<Response>());
+
+            SetupAdminContext();
 
             // Act
-            var result = _controller.GetResponseById("1");
+            var result = _controller.GetResponsesByForm(formId);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returnedResponses = Assert.IsAssignableFrom<IEnumerable<Response>>(okResult.Value);
+            Assert.Empty(returnedResponses);
+        }
+
+        #endregion
+
+        #region GetResponseById Tests
+
+        [Fact]
+        public void GetResponseById_Success_ReturnsOkWithData()
+        {
+            // Arrange
+            var responseId = "123";
+            var response = new Response 
+            { 
+                Id = 123,
+                FormId = "form1"
+            };
+
+            _responseManagerMock.Setup(x => x.GetResponseById(responseId))
+                .Returns((true, "Success", response));
+
+            SetupAdminContext();
+
+            // Act
+            var result = _controller.GetResponseById(responseId);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
@@ -146,88 +261,371 @@ namespace FormBuilder.API.Tests.Controllers
         }
 
         [Fact]
-        public void GetResponseById_NonExistingId_ReturnsNotFound()
+        public void GetResponseById_NotFound_ReturnsNotFound()
         {
             // Arrange
-            SetupUserClaims("Admin", Roles.Admin);
-            _responseManagerMock.Setup(x => x.GetResponseById("999"))
+            var responseId = "999";
+            _responseManagerMock.Setup(x => x.GetResponseById(responseId))
                 .Returns((false, "Response not found", null));
 
+            SetupAdminContext();
+
             // Act
-            var result = _controller.GetResponseById("999");
+            var result = _controller.GetResponseById(responseId);
 
             // Assert
             var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
             Assert.Equal("Response not found", notFoundResult.Value);
         }
 
+        #endregion
+
+        #region DownloadFile Tests
+
         [Fact]
-        public void DownloadFile_ValidRequest_ReturnsFile()
+        public void DownloadFile_ValidId_ReturnsFile()
         {
             // Arrange
+            var responseId = "123";
+            var questionId = "q1";
             var fileAttachment = new FileAttachment
             {
-                Id = 1,
                 FileName = "test.pdf",
                 FileType = "application/pdf",
-                Base64Content = Convert.ToBase64String(new byte[] { 1, 2, 3 })
+                Base64Content = Convert.ToBase64String(new byte[] { 1, 2, 3, 4 })
             };
-            _responseManagerMock.Setup(x => x.GetFileAttachment(1, "q1"))
-                .Returns((true, "File found", fileAttachment));
+
+            _responseManagerMock.Setup(x => x.GetFileAttachment(123, questionId))
+                .Returns((true, "Success", fileAttachment));
 
             // Act
-            var result = _controller.DownloadFile("1", "q1");
+            var result = _controller.DownloadFile(responseId, questionId);
 
             // Assert
             var fileResult = Assert.IsType<FileContentResult>(result);
             Assert.Equal("test.pdf", fileResult.FileDownloadName);
             Assert.Equal("application/pdf", fileResult.ContentType);
+            Assert.Equal(new byte[] { 1, 2, 3, 4 }, fileResult.FileContents);
         }
 
         [Fact]
         public void DownloadFile_InvalidResponseId_ReturnsBadRequest()
         {
-            // Arrange & Act
-            var result = _controller.DownloadFile("invalid", "q1");
+            // Arrange
+            var responseId = "abc"; // Invalid integer
+            var questionId = "q1";
+
+            // Act
+            var result = _controller.DownloadFile(responseId, questionId);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            dynamic badRequestValue = badRequestResult.Value;
-            Assert.False(badRequestValue.success);
-            Assert.Equal("Invalid response ID", badRequestValue.message);
+            var json = JsonConvert.SerializeObject(badRequestResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.False((bool)value.success);
+            Assert.Equal("Invalid response ID", (string)value.message);
         }
 
         [Fact]
-        public void GetResponseWithDetails_ValidId_ReturnsOk()
+        public void DownloadFile_FileNotFound_ReturnsNotFound()
         {
             // Arrange
-            SetupUserClaims("Admin", Roles.Admin);
-            var response = new Response { Id = 1, FormId = "1" };
-            _responseManagerMock.Setup(x => x.GetResponseWithFiles(1))
-                .Returns((true, "Response retrieved", response));
+            var responseId = "123";
+            var questionId = "q1";
+
+            _responseManagerMock.Setup(x => x.GetFileAttachment(123, questionId))
+                .Returns((false, "File not found", null));
 
             // Act
-            var result = _controller.GetResponseWithDetails("1");
+            var result = _controller.DownloadFile(responseId, questionId);
+
+            // Assert
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+            var json = JsonConvert.SerializeObject(notFoundResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.False((bool)value.success);
+            Assert.Equal("File not found", (string)value.message);
+        }
+
+        [Fact]
+        public void DownloadFile_EmptyResponseId_ReturnsBadRequest()
+        {
+            // Arrange
+            var responseId = "";
+            var questionId = "q1";
+
+            // Act
+            var result = _controller.DownloadFile(responseId, questionId);
+
+            // Assert
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            var json = JsonConvert.SerializeObject(badRequestResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.Equal("Invalid response ID", (string)value.message);
+        }
+
+        [Fact]
+        public void DownloadFile_NullResponseId_ReturnsBadRequest()
+        {
+            // Arrange
+            string responseId = null;
+            var questionId = "q1";
+
+            // Act
+            var result = _controller.DownloadFile(responseId, questionId);
+
+            // Assert
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            var json = JsonConvert.SerializeObject(badRequestResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.Equal("Invalid response ID", (string)value.message);
+        }
+
+        #endregion
+
+        #region GetResponseWithDetails Tests
+
+        [Fact]
+        public void GetResponseWithDetails_ValidId_ReturnsOkWithData()
+        {
+            // Arrange
+            var responseId = "456";
+            var responseData = new
+            {
+                Response = new Response { Id = 456 },
+                FileAttachments = new List<object>()
+            };
+
+            _responseManagerMock.Setup(x => x.GetResponseWithFiles(456))
+                .Returns((true, "Success", responseData));
+
+            SetupAdminContext();
+
+            // Act
+            var result = _controller.GetResponseWithDetails(responseId);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(response, okResult.Value);
+            Assert.Equal(responseData, okResult.Value);
         }
 
         [Fact]
-        public void GetResponseWithDetails_InvalidId_ReturnsBadRequest()
+        public void GetResponseWithDetails_InvalidResponseId_ReturnsBadRequest()
         {
             // Arrange
-            SetupUserClaims("Admin", Roles.Admin);
+            var responseId = "xyz";
+
+            SetupAdminContext();
 
             // Act
-            var result = _controller.GetResponseWithDetails("invalid");
+            var result = _controller.GetResponseWithDetails(responseId);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            dynamic badRequestValue = badRequestResult.Value;
-            Assert.False(badRequestValue.success);
-            Assert.Equal("Invalid response ID", badRequestValue.message);
+            var json = JsonConvert.SerializeObject(badRequestResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.False((bool)value.success);
+            Assert.Equal("Invalid response ID", (string)value.message);
         }
+
+        [Fact]
+        public void GetResponseWithDetails_NotFound_ReturnsNotFound()
+        {
+            // Arrange
+            var responseId = "789";
+
+            _responseManagerMock.Setup(x => x.GetResponseWithFiles(789))
+                .Returns((false, "Response not found", null));
+
+            SetupAdminContext();
+
+            // Act
+            var result = _controller.GetResponseWithDetails(responseId);
+
+            // Assert
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+            var json = JsonConvert.SerializeObject(notFoundResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.False((bool)value.success);
+            Assert.Equal("Response not found", (string)value.message);
+        }
+
+        [Fact]
+        public void GetResponseWithDetails_EmptyResponseId_ReturnsBadRequest()
+        {
+            // Arrange
+            var responseId = "";
+
+            SetupAdminContext();
+
+            // Act
+            var result = _controller.GetResponseWithDetails(responseId);
+
+            // Assert
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            var json = JsonConvert.SerializeObject(badRequestResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.Equal("Invalid response ID", (string)value.message);
+        }
+
+        [Fact]
+        public void GetResponseWithDetails_WhitespaceResponseId_ReturnsBadRequest()
+        {
+            // Arrange
+            var responseId = "  ";
+
+            SetupAdminContext();
+
+            // Act
+            var result = _controller.GetResponseWithDetails(responseId);
+
+            // Assert
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            var json = JsonConvert.SerializeObject(badRequestResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.Equal("Invalid response ID", (string)value.message);
+        }
+
+        #endregion
+
+        #region Edge Cases and Additional Coverage
+
+        [Fact]
+        public void SubmitResponse_WithEmptyAnswers_Success()
+        {
+            // Arrange
+            var dto = new FormSubmissionDto
+            {
+                FormId = "form1",
+                Answers = new List<AnswerDto>()
+            };
+
+            var response = new Response { Id = 999 };
+
+            _responseManagerMock.Setup(x => x.SubmitResponse(dto, It.IsAny<ClaimsPrincipal>()))
+                .Returns((true, "Success", response));
+
+            // Act
+            var result = _controller.SubmitResponse(dto);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var json = JsonConvert.SerializeObject(okResult.Value);
+            var value = JsonConvert.DeserializeObject<dynamic>(json);
+            Assert.Equal(999, (int)value.responseId);
+        }
+
+        [Fact]
+        public void GetResponsesByForm_SpecialCharactersInFormId_ReturnsOk()
+        {
+            // Arrange
+            var formId = "form-123_test";
+            var responses = new List<Response>();
+
+            _responseManagerMock.Setup(x => x.GetResponsesByForm(formId))
+                .Returns(responses);
+
+            SetupAdminContext();
+
+            // Act
+            var result = _controller.GetResponsesByForm(formId);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotNull(okResult.Value);
+        }
+
+        [Fact]
+        public void DownloadFile_LargeFile_ReturnsFile()
+        {
+            // Arrange
+            var responseId = "100";
+            var questionId = "q1";
+            var largeContent = new byte[1024 * 1024]; // 1MB
+            Random.Shared.NextBytes(largeContent);
+            
+            var fileAttachment = new FileAttachment
+            {
+                FileName = "large.pdf",
+                FileType = "application/pdf",
+                Base64Content = Convert.ToBase64String(largeContent)
+            };
+
+            _responseManagerMock.Setup(x => x.GetFileAttachment(100, questionId))
+                .Returns((true, "Success", fileAttachment));
+
+            // Act
+            var result = _controller.DownloadFile(responseId, questionId);
+
+            // Assert
+            var fileResult = Assert.IsType<FileContentResult>(result);
+            Assert.Equal(largeContent, fileResult.FileContents);
+        }
+
+        [Fact]
+        public void GetResponseWithDetails_MaxIntResponseId_Success()
+        {
+            // Arrange
+            var responseId = int.MaxValue.ToString();
+            var responseData = new { Response = new Response(), FileAttachments = new List<object>() };
+
+            _responseManagerMock.Setup(x => x.GetResponseWithFiles(int.MaxValue))
+                .Returns((true, "Success", responseData));
+
+            SetupAdminContext();
+
+            // Act
+            var result = _controller.GetResponseWithDetails(responseId);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.NotNull(okResult.Value);
+        }
+
+        [Fact]
+        public void DownloadFile_SpecialCharactersInQuestionId_Success()
+        {
+            // Arrange
+            var responseId = "1";
+            var questionId = "q-1_test.2";
+            var fileAttachment = new FileAttachment
+            {
+                FileName = "test.pdf",
+                FileType = "application/pdf",
+                Base64Content = Convert.ToBase64String(new byte[] { 1, 2, 3 })
+            };
+
+            _responseManagerMock.Setup(x => x.GetFileAttachment(1, questionId))
+                .Returns((true, "Success", fileAttachment));
+
+            // Act
+            var result = _controller.DownloadFile(responseId, questionId);
+
+            // Assert
+            var fileResult = Assert.IsType<FileContentResult>(result);
+            Assert.Equal("test.pdf", fileResult.FileDownloadName);
+        }
+
+        #endregion
+
+        #region Helper Methods
+
+        private void SetupAdminContext()
+        {
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, "1"),
+                new Claim(ClaimTypes.Role, Roles.Admin)
+            };
+            var identity = new ClaimsIdentity(claims, "TestAuth");
+            var claimsPrincipal = new ClaimsPrincipal(identity);
+            
+            _controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = claimsPrincipal }
+            };
+        }
+
+        #endregion
     }
 }

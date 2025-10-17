@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\ragul.n_disprz\\Form_Builder\\Backend\\Formbuilder.API.Tests\\FormBuilder.API.Tests.csproj": {}
+    "C:\\Users\\ragul.n_disprz\\Form_Builder\\Backend\\FormBuilder.API.Tests\\FormBuilder.API.Tests.csproj": {}
   },
   "projects": {
-    "C:\\Users\\ragul.n_disprz\\Form_Builder\\Backend\\Formbuilder.API.Tests\\FormBuilder.API.Tests.csproj": {
+    "C:\\Users\\ragul.n_disprz\\Form_Builder\\Backend\\FormBuilder.API.Tests\\FormBuilder.API.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\ragul.n_disprz\\Form_Builder\\Backend\\Formbuilder.API.Tests\\FormBuilder.API.Tests.csproj",
+        "projectUniqueName": "C:\\Users\\ragul.n_disprz\\Form_Builder\\Backend\\FormBuilder.API.Tests\\FormBuilder.API.Tests.csproj",
         "projectName": "FormBuilder.API.Tests",
-        "projectPath": "C:\\Users\\ragul.n_disprz\\Form_Builder\\Backend\\Formbuilder.API.Tests\\FormBuilder.API.Tests.csproj",
+        "projectPath": "C:\\Users\\ragul.n_disprz\\Form_Builder\\Backend\\FormBuilder.API.Tests\\FormBuilder.API.Tests.csproj",
         "packagesPath": "C:\\Users\\ragul.n_disprz\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\ragul.n_disprz\\Form_Builder\\Backend\\Formbuilder.API.Tests\\obj\\",
+        "outputPath": "C:\\Users\\ragul.n_disprz\\Form_Builder\\Backend\\FormBuilder.API.Tests\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
