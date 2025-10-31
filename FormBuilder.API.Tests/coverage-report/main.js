@@ -226,7 +226,7 @@ var assemblies = [
       { "name": "FormBuilder.API.DataAccess.Implementations.FileAttachmentRepository", "rp": "FormBuilder.API_FileAttachmentRepository.html", "cl": 36, "ucl": 0, "cal": 36, "tl": 66, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.DataAccess.Implementations.FormRepository", "rp": "FormBuilder.API_FormRepository.html", "cl": 90, "ucl": 15, "cal": 105, "tl": 178, "cb": 7, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.DataAccess.Implementations.QuestionRepository", "rp": "FormBuilder.API_QuestionRepository.html", "cl": 7, "ucl": 2, "cal": 9, "tl": 28, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "FormBuilder.API.DataAccess.Implementations.ResponseRepository", "rp": "FormBuilder.API_ResponseRepository.html", "cl": 60, "ucl": 41, "cal": 101, "tl": 156, "cb": 7, "tb": 20, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "FormBuilder.API.DataAccess.Implementations.ResponseRepository", "rp": "FormBuilder.API_ResponseRepository.html", "cl": 89, "ucl": 12, "cal": 101, "tl": 156, "cb": 15, "tb": 20, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.DataAccess.Implementations.UserRepository", "rp": "FormBuilder.API_UserRepository.html", "cl": 22, "ucl": 0, "cal": 22, "tl": 43, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.DTOs.Form.AnswerDto", "rp": "FormBuilder.API_AnswerDto.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 26, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.DTOs.Form.FileUploadDto", "rp": "FormBuilder.API_FileUploadDto.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 26, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
@@ -236,10 +236,8 @@ var assemblies = [
       { "name": "FormBuilder.API.DTOs.Form.FormLayoutResponseDto", "rp": "FormBuilder.API_FormLayoutResponseDto.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 23, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.DTOs.Form.FormSubmissionDto", "rp": "FormBuilder.API_FormSubmissionDto.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 26, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.DTOs.Form.QuestionDto", "rp": "FormBuilder.API_QuestionDto.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 23, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "FormBuilder.API.Mappings.AutoMapperProfile", "rp": "FormBuilder.API_AutoMapperProfile.html", "cl": 0, "ucl": 12, "cal": 12, "tl": 30, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.Models.FileAttachment", "rp": "FormBuilder.API_FileAttachment.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 35, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.Models.Form", "rp": "FormBuilder.API_Form.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 47, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "FormBuilder.API.Models.FormConfig", "rp": "FormBuilder.API_FormConfig.html", "cl": 0, "ucl": 3, "cal": 3, "tl": 14, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.Models.MongoBaseEntity", "rp": "FormBuilder.API_MongoBaseEntity.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 12, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.Models.Option", "rp": "FormBuilder.API_Option.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 75, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "FormBuilder.API.Models.Question", "rp": "FormBuilder.API_Question.html", "cl": 10, "ucl": 0, "cal": 10, "tl": 75, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
@@ -274,12 +272,6 @@ var riskHotspots = [
     ]},
   {
     "assembly": "FormBuilder.API", "class": "FormBuilder.API.Business.Implementations.FormManager", "reportPath": "FormBuilder.API_FormManager.html", "methodName": "GetFormById(System.String,System.Security.Claims.ClaimsPrincipal)", "methodShortName": "GetFormById(...)", "fileIndex": 0, "line": 268,
-    "metrics": [
-      { "value": 42, "exceeded": true },
-      { "value": 6, "exceeded": false },
-    ]},
-  {
-    "assembly": "FormBuilder.API", "class": "FormBuilder.API.DataAccess.Implementations.ResponseRepository", "reportPath": "FormBuilder.API_ResponseRepository.html", "methodName": "Delete(System.String)", "methodShortName": "Delete(...)", "fileIndex": 0, "line": 105,
     "metrics": [
       { "value": 42, "exceeded": true },
       { "value": 6, "exceeded": false },

@@ -14,7 +14,8 @@
                     [FormBuilder.API]FormBuilder.API.Startup,
                     [FormBuilder.API]FormBuilder.API.Services.MongoDbService,
                     [FormBuilder.API]FormBuilder.API.Services.MySqlService,
-                    [FormBuilder.API]FormBuilder.API.Profiles.AutoMapperProfile,
+                    [FormBuilder.API]FormBuilder.API.Mappings.AutoMapperProfile,
+                    [FormBuilder.API]FormBuilder.API.Models.FormConfig,
                     [FormBuilder.API.Tests]*
                   </Exclude>
           
@@ -26,7 +27,8 @@
                     **/Startup.cs;
                     **/Services/MongoDbService.cs;
                     **/Services/MySqlService.cs;
-                    **/Profiles/AutoMapperProfile.cs
+                    **/Mappings/AutoMapperProfile.cs
+                    **/Models/FormConfig.cs
                   </ExcludeByFile>
                    
                   <!-- Exclude by attributes -->
