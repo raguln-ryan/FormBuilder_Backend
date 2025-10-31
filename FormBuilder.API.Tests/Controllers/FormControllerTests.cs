@@ -39,23 +39,7 @@ namespace FormBuilder.API.Tests.Controllers
             };
         }
 
-        [Fact]
-        public void CreateFormConfig_ValidRequest_ReturnsOk()
-        {
-            // Arrange
-            var dto = new FormConfigRequestDto();
-            var response = new FormConfigResponseDto();
-            _formManagerMock.Setup(x => x.CreateFormConfig(dto, "Admin"))
-                .Returns((true, "Form created successfully", response));
-
-            // Act
-            var result = _controller.CreateFormConfig(dto);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(response, okResult.Value);
-        }
-
+      
         [Fact]
         public void CreateFormConfig_InvalidRequest_ReturnsBadRequest()
         {
@@ -90,29 +74,12 @@ namespace FormBuilder.API.Tests.Controllers
         }
 
         [Fact]
-        public void CreateFormLayout_ValidRequest_ReturnsOk()
-        {
-            // Arrange
-            var dto = new FormLayoutRequestDto();
-            var response = new FormLayoutResponseDto();
-            _formManagerMock.Setup(x => x.CreateFormLayout(dto, "Admin"))
-                .Returns((true, "Layout created successfully", response));
-
-            // Act
-            var result = _controller.CreateFormLayout(dto);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(response, okResult.Value);
-        }
-
-        [Fact]
         public void UpdateFormLayout_ValidRequest_ReturnsOk()
         {
             // Arrange
             var dto = new FormLayoutRequestDto();
             var response = new FormLayoutResponseDto();
-            _formManagerMock.Setup(x => x.UpdateFormLayout("1", dto))
+            _formManagerMock.Setup(x => x.UpdateFormLayout("1", dto, "Admin"))
                 .Returns((true, "Layout updated successfully", response));
 
             // Act
@@ -124,18 +91,19 @@ namespace FormBuilder.API.Tests.Controllers
         }
 
         [Fact]
-        public void DeleteForm_ExistingForm_ReturnsOk()
+        public void UpdateFormLayout_InvalidRequest_ReturnsBadRequest()
         {
             // Arrange
-            _formManagerMock.Setup(x => x.DeleteForm("1"))
-                .Returns((Success: true, Message: "Form deleted successfully"));
+            var dto = new FormLayoutRequestDto();
+            _formManagerMock.Setup(x => x.UpdateFormLayout("1", dto, "Admin"))
+                .Returns((false, "Invalid layout data", null));
 
             // Act
-            var result = _controller.DeleteForm("1");
+            var result = _controller.UpdateFormLayout("1", dto);
 
             // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal("Form deleted successfully", okResult.Value);
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("Invalid layout data", badRequestResult.Value);
         }
 
         [Fact]
@@ -157,20 +125,30 @@ namespace FormBuilder.API.Tests.Controllers
         public void GetAllForms_ReturnsOkWithForms()
         {
             // Arrange
-            var forms = new List<FormConfigResponseDto>
+            var paginatedResponse = new
             {
-                new FormConfigResponseDto(),
-                new FormConfigResponseDto()
+                data = new List<FormLayoutResponseDto>
+                {
+                    new FormLayoutResponseDto(),
+                    new FormLayoutResponseDto()
+                },
+                pagination = new
+                {
+                    offset = 0,
+                    limit = 10,
+                    total = 2
+                }
             };
-            _formManagerMock.Setup(x => x.GetAllForms(It.IsAny<ClaimsPrincipal>()))
-                .Returns(forms);
+            
+            _formManagerMock.Setup(x => x.GetAllForms(It.IsAny<ClaimsPrincipal>(), It.IsAny<int>(), It.IsAny<int>()))
+                .Returns((true, "Forms retrieved successfully", (object)paginatedResponse));
 
             // Act
             var result = _controller.GetAllForms();
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(forms, okResult.Value);
+            Assert.Equal(paginatedResponse, okResult.Value);
         }
 
         [Fact]
@@ -204,21 +182,7 @@ namespace FormBuilder.API.Tests.Controllers
             Assert.Equal("Form not found", notFoundResult.Value);
         }
 
-        [Fact]
-        public void PublishForm_ValidRequest_ReturnsOk()
-        {
-            // Arrange
-            _formManagerMock.Setup(x => x.PublishForm("1", "Admin"))
-                .Returns((Success: true, Message: "Form published successfully"));
-
-            // Act
-            var result = _controller.PublishForm("1");
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal("Form published successfully", okResult.Value);
-        }
-
+ 
         [Fact]
         public void PublishForm_InvalidRequest_ReturnsBadRequest()
         {

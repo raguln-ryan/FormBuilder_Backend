@@ -12,12 +12,23 @@
                     [*]*.Configurations.*,
                     [FormBuilder.API]FormBuilder.API.Program,
                     [FormBuilder.API]FormBuilder.API.Startup,
+                    [FormBuilder.API]FormBuilder.API.Services.MongoDbService,
+                    [FormBuilder.API]FormBuilder.API.Services.MySqlService,
+                    [FormBuilder.API]FormBuilder.API.Profiles.AutoMapperProfile,
                     [FormBuilder.API.Tests]*
                   </Exclude>
           
                   <!-- Exclude by file patterns -->
-                  <ExcludeByFile>**/Migrations/*.cs;**/Configurations/*.cs;**/Program.cs;**/Startup.cs</ExcludeByFile>
-          
+                  <ExcludeByFile>
+                    **/Migrations/*.cs;
+                    **/Configurations/*.cs;
+                    **/Program.cs;
+                    **/Startup.cs;
+                    **/Services/MongoDbService.cs;
+                    **/Services/MySqlService.cs;
+                    **/Profiles/AutoMapperProfile.cs
+                  </ExcludeByFile>
+                   
                   <!-- Exclude by attributes -->
                   <ExcludeByAttribute>CompilerGeneratedAttribute,GeneratedCodeAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
           

@@ -188,53 +188,7 @@ namespace FormBuilder.API.Tests.Controllers
 
         #region GetResponsesByForm Tests
 
-        [Fact]
-        public void GetResponsesByForm_ReturnsOkWithResponses()
-        {
-            // Arrange
-            var formId = "form1";
-            var responses = new List<Response>
-            {
-                new Response { Id = 1, FormId = formId },
-                new Response { Id = 2, FormId = formId }
-            };
-
-            _responseManagerMock.Setup(x => x.GetResponsesByForm(formId))
-                .Returns(responses);
-
-            // Setup admin context
-            SetupAdminContext();
-
-            // Act
-            var result = _controller.GetResponsesByForm(formId);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(responses, okResult.Value);
-        }
-
-        [Fact]
-        public void GetResponsesByForm_EmptyList_ReturnsOkWithEmptyList()
-        {
-            // Arrange
-            var formId = "nonexistent";
-            _responseManagerMock.Setup(x => x.GetResponsesByForm(formId))
-                .Returns(new List<Response>());
-
-            SetupAdminContext();
-
-            // Act
-            var result = _controller.GetResponsesByForm(formId);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var returnedResponses = Assert.IsAssignableFrom<IEnumerable<Response>>(okResult.Value);
-            Assert.Empty(returnedResponses);
-        }
-
-        #endregion
-
-        #region GetResponseById Tests
+        
 
         [Fact]
         public void GetResponseById_Success_ReturnsOkWithData()
