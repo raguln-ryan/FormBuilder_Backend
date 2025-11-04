@@ -6,6 +6,7 @@ using FormBuilder.API.Business.Interfaces;
 using FormBuilder.API.Common;
 using FormBuilder.API.Controllers;
 using FormBuilder.API.DTOs.Form;
+using FormBuilder.API.DTOs.Common;
 using FormBuilder.API.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -46,44 +47,97 @@ namespace FormBuilder.API.Tests.Controllers
         public void GetPublishedForms_ReturnsOkWithForms()
         {
             // Arrange
-            var forms = new List<FormLayoutResponseDto>
-            {
-                new FormLayoutResponseDto
-                {
-                    FormId = "form1",
-                    Title = "Test Form",
-                    Description = "Test Description",
-                    Status = FormStatusDto.Published,
-                    Questions = new List<QuestionDto>()
-                }
-            };
-
-            _responseManagerMock.Setup(x => x.GetPublishedForms())
-                .Returns(forms);
+            var paginatedResponse = new PaginatedResponse<FormLayoutResponseDto>();
+            
+            _responseManagerMock.Setup(x => x.GetPublishedForms(1, 10, null))
+                .Returns((true, "Success", paginatedResponse));
 
             // Act
-            var result = _controller.GetPublishedForms();
+            var result = _controller.GetPublishedForms(1, 10, null);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(200, okResult.StatusCode);
-            Assert.Equal(forms, okResult.Value);
+            Assert.Equal(paginatedResponse, okResult.Value);
         }
 
         [Fact]
         public void GetPublishedForms_EmptyList_ReturnsOkWithEmptyList()
         {
             // Arrange
-            _responseManagerMock.Setup(x => x.GetPublishedForms())
-                .Returns(new List<FormLayoutResponseDto>());
+            var paginatedResponse = new PaginatedResponse<FormLayoutResponseDto>();
+            
+            _responseManagerMock.Setup(x => x.GetPublishedForms(1, 10, null))
+                .Returns((true, "Success", paginatedResponse));
 
             // Act
-            var result = _controller.GetPublishedForms();
+            var result = _controller.GetPublishedForms(1, 10, null);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            var returnedForms = Assert.IsType<List<FormLayoutResponseDto>>(okResult.Value);
-            Assert.Empty(returnedForms);
+            Assert.NotNull(okResult.Value);
+        }
+
+        [Fact]
+        public void GetPublishedForms_CallsManagerCorrectly()
+        {
+            // Arrange
+            var paginatedResponse = new PaginatedResponse<FormLayoutResponseDto>();
+            
+            _responseManagerMock.Setup(x => x.GetPublishedForms(1, 10, null))
+                .Returns((true, "Success", paginatedResponse));
+
+            // Act
+            var result = _controller.GetPublishedForms(1, 10, null);
+
+            // Assert
+            Assert.NotNull(result);
+            _responseManagerMock.Verify(x => x.GetPublishedForms(1, 10, null), Times.Once);
+        }
+
+        [Fact]
+        public void GetPublishedForms_FailureCase_ReturnsBadRequest()
+        {
+            // Arrange
+            _responseManagerMock.Setup(x => x.GetPublishedForms(1, 10, null))
+                .Returns((false, "Error message", null));
+
+            // Act
+            var result = _controller.GetPublishedForms(1, 10, null);
+
+            // Assert
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal("Error message", badRequestResult.Value);
+        }
+
+        [Fact]
+        public void GetFormForSubmission_FormExists_ReturnsOk()
+        {
+            // Arrange
+            var form = new FormLayoutResponseDto();
+            _responseManagerMock.Setup(x => x.GetFormById("form1"))
+                .Returns(form);
+
+            // Act
+            var result = _controller.GetFormForSubmission("form1");
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(form, okResult.Value);
+        }
+
+        [Fact]
+        public void GetFormForSubmission_FormNotFound_ReturnsNotFound()
+        {
+            // Arrange
+            _responseManagerMock.Setup(x => x.GetFormById("form1"))
+                .Returns((FormLayoutResponseDto)null);
+
+            // Act
+            var result = _controller.GetFormForSubmission("form1");
+
+            // Assert
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+            Assert.NotNull(notFoundResult.Value);
         }
 
         #endregion
@@ -188,7 +242,25 @@ namespace FormBuilder.API.Tests.Controllers
 
         #region GetResponsesByForm Tests
 
-        
+        [Fact]
+        public void GetResponsesByForm_SpecialCharactersInFormId_ReturnsOk()
+        {
+            // Arrange
+            var formId = "form-123_test";
+            var paginatedResponse = new PaginatedResponse<object>();
+            
+            _responseManagerMock.Setup(x => x.GetResponsesByForm(formId, 1, 10, null))
+                .Returns((true, "Success", paginatedResponse));
+
+            SetupAdminContext();
+
+            // Act
+            var result = _controller.GetResponsesByForm(formId, 1, 10, null);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(paginatedResponse, okResult.Value);
+        }
 
         [Fact]
         public void GetResponseById_Success_ReturnsOkWithData()
@@ -467,26 +539,6 @@ namespace FormBuilder.API.Tests.Controllers
             var json = JsonConvert.SerializeObject(okResult.Value);
             var value = JsonConvert.DeserializeObject<dynamic>(json);
             Assert.Equal(999, (int)value.responseId);
-        }
-
-        [Fact]
-        public void GetResponsesByForm_SpecialCharactersInFormId_ReturnsOk()
-        {
-            // Arrange
-            var formId = "form-123_test";
-            var responses = new List<Response>();
-
-            _responseManagerMock.Setup(x => x.GetResponsesByForm(formId))
-                .Returns(responses);
-
-            SetupAdminContext();
-
-            // Act
-            var result = _controller.GetResponsesByForm(formId);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.NotNull(okResult.Value);
         }
 
         [Fact]

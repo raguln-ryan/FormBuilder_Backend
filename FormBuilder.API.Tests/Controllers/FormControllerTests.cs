@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using FormBuilder.API.Controllers;
 using FormBuilder.API.Business.Interfaces;
 using FormBuilder.API.DTOs.Form;
+using FormBuilder.API.DTOs.Common;
 using FormBuilder.API.Common;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
@@ -125,26 +126,13 @@ namespace FormBuilder.API.Tests.Controllers
         public void GetAllForms_ReturnsOkWithForms()
         {
             // Arrange
-            var paginatedResponse = new
-            {
-                data = new List<FormLayoutResponseDto>
-                {
-                    new FormLayoutResponseDto(),
-                    new FormLayoutResponseDto()
-                },
-                pagination = new
-                {
-                    offset = 0,
-                    limit = 10,
-                    total = 2
-                }
-            };
+            var paginatedResponse = new PaginatedResponse<FormLayoutResponseDto>();
             
-            _formManagerMock.Setup(x => x.GetAllForms(It.IsAny<ClaimsPrincipal>(), It.IsAny<int>(), It.IsAny<int>()))
-                .Returns((true, "Forms retrieved successfully", (object)paginatedResponse));
+            _formManagerMock.Setup(x => x.GetAllForms(It.IsAny<ClaimsPrincipal>(), 1, 10, null))
+                .Returns((true, "Forms retrieved successfully", paginatedResponse));
 
             // Act
-            var result = _controller.GetAllForms();
+            var result = _controller.GetAllForms(1, 10, null);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);

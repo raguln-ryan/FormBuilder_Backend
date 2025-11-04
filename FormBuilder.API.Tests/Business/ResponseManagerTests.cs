@@ -6,6 +6,7 @@ using FormBuilder.API.Business.Implementations;
 using FormBuilder.API.Configurations;
 using FormBuilder.API.DataAccess.Interfaces;
 using FormBuilder.API.DTOs.Form;
+using FormBuilder.API.DTOs.Common;
 using FormBuilder.API.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -174,135 +175,103 @@ namespace FormBuilder.API.Tests.Business
         #region GetUserSubmissions Tests
 
         [Fact]
-        public void GetUserSubmissions_WithMultipleResponses_ReturnsOrderedByDate()
+        public void GetUserSubmissions_ValidUserId_ReturnsSuccess()
         {
             // Arrange
-            var userId = 1;
             var responses = new List<Response>
             {
                 new Response
                 {
                     Id = 1,
                     FormId = "form1",
-                    UserId = userId,
-                    SubmittedAt = DateTime.UtcNow.AddDays(-2),
+                    UserId = 1,
+                    SubmittedAt = DateTime.UtcNow,
                     Details = new List<ResponseDetail>
                     {
-                        new ResponseDetail { QuestionId = "q1", Answer = "Answer 1" }
+                        new ResponseDetail { QuestionId = "q1", Answer = "Answer" }
                     }
+                }
+            };
+            var form = new Form
+            {
+                Id = "form1",
+                Title = "Test Form",
+                Description = "Description",
+                Questions = new List<Question> { new Question() }
+            };
+            _responseRepositoryMock.Setup(x => x.GetByUserId(1)).Returns(responses);
+            _formRepositoryMock.Setup(x => x.GetById("form1")).Returns(form);
+
+            // Act
+            var result = _responseManager.GetUserSubmissions(1);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal("Submissions retrieved successfully", result.Message);
+            Assert.NotNull(result.Data);
+        }
+
+        [Fact]
+        public void GetUserSubmissions_WithSearchTerm_FiltersResults()
+        {
+            // Arrange
+            var responses = new List<Response>
+            {
+                new Response
+                {
+                    Id = 1,
+                    FormId = "form1",
+                    UserId = 1
                 },
                 new Response
                 {
                     Id = 2,
                     FormId = "form2",
-                    UserId = userId,
-                    SubmittedAt = DateTime.UtcNow,
-                    Details = new List<ResponseDetail>()
+                    UserId = 1
                 }
             };
-
-            var form1 = new Form
-            {
-                Id = "form1",
-                Title = "Form 1",
-                Description = "Desc 1",
-                Questions = new List<Question> { new Question() }
-            };
-            var form2 = new Form
-            {
-                Id = "form2",
-                Title = "Form 2",
-                Description = "Desc 2",
-                Questions = new List<Question> { new Question(), new Question() }
-            };
-
-            _responseRepositoryMock.Setup(x => x.GetByUserId(userId)).Returns(responses);
+            var form1 = new Form { Id = "form1", Title = "Feedback Form", Description = "Customer feedback" };
+            var form2 = new Form { Id = "form2", Title = "Survey Form", Description = "Annual survey" };
+            
+            _responseRepositoryMock.Setup(x => x.GetByUserId(1)).Returns(responses);
             _formRepositoryMock.Setup(x => x.GetById("form1")).Returns(form1);
             _formRepositoryMock.Setup(x => x.GetById("form2")).Returns(form2);
 
             // Act
-            var result = _responseManager.GetUserSubmissions(userId);
+            var result = _responseManager.GetUserSubmissions(1, 1, 10, "feedback");
 
             // Assert
-            Assert.NotNull(result);
-            Assert.Equal(2, result.Count());
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+        }
+
+        [Fact]
+        public void GetUserSubmissions_ExceptionThrown_ReturnsFailure()
+        {
+            // Arrange
+            _responseRepositoryMock.Setup(x => x.GetByUserId(1))
+                .Throws(new Exception("Database error"));
+
+            // Act
+            var result = _responseManager.GetUserSubmissions(1);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("Error retrieving submissions", result.Message);
         }
 
         [Fact]
         public void GetUserSubmissions_NoResponses_ReturnsEmptyList()
         {
             // Arrange
-            var userId = 1;
-            _responseRepositoryMock.Setup(x => x.GetByUserId(userId)).Returns(new List<Response>());
+            _responseRepositoryMock.Setup(x => x.GetByUserId(1)).Returns(new List<Response>());
 
             // Act
-            var result = _responseManager.GetUserSubmissions(userId);
+            var result = _responseManager.GetUserSubmissions(1);
 
             // Assert
-            Assert.NotNull(result);
-            Assert.Empty(result);
-        }
-
-        [Fact]
-        public void GetUserSubmissions_WithNullFormDetails_HandlesGracefully()
-        {
-            // Arrange
-            var userId = 1;
-            var responses = new List<Response>
-            {
-                new Response
-                {
-                    Id = 1,
-                    FormId = "form1",
-                    UserId = userId,
-                    SubmittedAt = DateTime.UtcNow,
-                    Details = null
-                }
-            };
-
-            _responseRepositoryMock.Setup(x => x.GetByUserId(userId)).Returns(responses);
-            _formRepositoryMock.Setup(x => x.GetById("form1")).Returns((Form)null);
-
-            // Act
-            var result = _responseManager.GetUserSubmissions(userId);
-
-            // Assert
-            Assert.NotNull(result);
-            Assert.Single(result);
-        }
-
-        [Fact]
-        public void GetUserSubmissions_WithNullQuestions_ReturnsZeroQuestionCount()
-        {
-            // Arrange
-            var userId = 1;
-            var responses = new List<Response>
-            {
-                new Response
-                {
-                    Id = 1,
-                    FormId = "form1",
-                    UserId = userId,
-                    SubmittedAt = DateTime.UtcNow
-                }
-            };
-
-            var form = new Form
-            {
-                Id = "form1",
-                Title = "Test Form",
-                Questions = null
-            };
-
-            _responseRepositoryMock.Setup(x => x.GetByUserId(userId)).Returns(responses);
-            _formRepositoryMock.Setup(x => x.GetById("form1")).Returns(form);
-
-            // Act
-            var result = _responseManager.GetUserSubmissions(userId);
-
-            // Assert
-            Assert.NotNull(result);
-            Assert.Single(result);
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
         }
 
         #endregion
@@ -371,6 +340,21 @@ namespace FormBuilder.API.Tests.Business
             // Assert
             Assert.True(result.Success);
             Assert.NotNull(result.Data);
+        }
+
+        [Fact]
+        public void GetResponseWithFiles_ResponseNotFound_ReturnsFailure()
+        {
+            // Arrange
+            _responseRepositoryMock.Setup(x => x.GetById("999")).Returns((Response)null);
+
+            // Act
+            var result = _responseManager.GetResponseWithFiles(999);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Response not found", result.Message);
+            Assert.Null(result.Data);
         }
 
         #endregion
@@ -711,6 +695,234 @@ namespace FormBuilder.API.Tests.Business
             Assert.Contains("Inner exception message", result.Message);
         }
 
+        [Fact]
+        public void SubmitResponse_InvalidUserId_ReturnsFailure()
+        {
+            // Arrange
+            var dto = new FormSubmissionDto { FormId = "form1" };
+            var claims = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "invalid")
+            }));
+
+            // Act
+            var result = _responseManager.SubmitResponse(dto, claims);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Invalid user ID.", result.Message);
+        }
+
+        [Fact]
+        public void SubmitResponse_EmptyFormId_ReturnsFailure()
+        {
+            // Arrange
+            var dto = new FormSubmissionDto { FormId = "" };
+            var claims = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "1")
+            }));
+
+            // Act
+            var result = _responseManager.SubmitResponse(dto, claims);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Form ID is required.", result.Message);
+        }
+
+        [Fact]
+        public void SubmitResponse_FormNotFound_ReturnsFailure()
+        {
+            // Arrange
+            var dto = new FormSubmissionDto { FormId = "nonexistent" };
+            var claims = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "1")
+            }));
+            _formRepositoryMock.Setup(x => x.GetById("nonexistent")).Returns((Form)null);
+
+            // Act
+            var result = _responseManager.SubmitResponse(dto, claims);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Invalid form ID.", result.Message);
+        }
+
+        [Fact]
+        public void SubmitResponse_UnpublishedForm_ReturnsFailure()
+        {
+            // Arrange
+            var dto = new FormSubmissionDto { FormId = "form1" };
+            var claims = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "1")
+            }));
+            var form = new Form
+            {
+                Id = "form1",
+                Status = FormStatus.Draft
+            };
+            _formRepositoryMock.Setup(x => x.GetById("form1")).Returns(form);
+
+            // Act
+            var result = _responseManager.SubmitResponse(dto, claims);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Cannot submit to an unpublished form.", result.Message);
+        }
+
+        [Fact]
+        public void SubmitResponse_FileSizeExceedsLimit_ReturnsFailure()
+        {
+            // Arrange
+            var dto = new FormSubmissionDto
+            {
+                FormId = "form1",
+                FileUploads = new List<FileUploadDto>
+                {
+                    new FileUploadDto
+                    {
+                        FileName = "large.pdf",
+                        FileSize = 6 * 1024 * 1024, // 6MB
+                        FileType = "application/pdf"
+                    }
+                }
+            };
+            var claims = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "1")
+            }));
+            var form = new Form
+            {
+                Id = "form1",
+                Status = FormStatus.Published,
+                Questions = new List<Question>()
+            };
+            _formRepositoryMock.Setup(x => x.GetById("form1")).Returns(form);
+
+            // Act
+            var result = _responseManager.SubmitResponse(dto, claims);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("exceeds maximum size of 5MB", result.Message);
+        }
+
+        [Fact]
+        public void SubmitResponse_InvalidFileType_ReturnsFailure()
+        {
+            // Arrange
+            var dto = new FormSubmissionDto
+            {
+                FormId = "form1",
+                FileUploads = new List<FileUploadDto>
+                {
+                    new FileUploadDto
+                    {
+                        FileName = "file.exe",
+                        FileSize = 1024,
+                        FileType = "application/exe"
+                    }
+                }
+            };
+            var claims = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "1")
+            }));
+            var form = new Form
+            {
+                Id = "form1",
+                Status = FormStatus.Published,
+                Questions = new List<Question>()
+            };
+            _formRepositoryMock.Setup(x => x.GetById("form1")).Returns(form);
+
+            // Act
+            var result = _responseManager.SubmitResponse(dto, claims);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("is not allowed", result.Message);
+        }
+
+        [Fact]
+        public void SubmitResponse_RequiredQuestionNotAnswered_ReturnsFailure()
+        {
+            // Arrange
+            var dto = new FormSubmissionDto
+            {
+                FormId = "form1",
+                Answers = new List<AnswerDto>()
+            };
+            var claims = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "1")
+            }));
+            var form = new Form
+            {
+                Id = "form1",
+                Status = FormStatus.Published,
+                Questions = new List<Question>
+                {
+                    new Question
+                    {
+                        QuestionId = "q1",
+                        QuestionText = "Required Question",
+                        Required = true,
+                        Type = "text"
+                    }
+                }
+            };
+            _formRepositoryMock.Setup(x => x.GetById("form1")).Returns(form);
+
+            // Act
+            var result = _responseManager.SubmitResponse(dto, claims);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("Required Question", result.Message);
+        }
+
+        [Fact]
+        public void SubmitResponse_RequiredFileUploadMissing_ReturnsFailure()
+        {
+            // Arrange
+            var dto = new FormSubmissionDto
+            {
+                FormId = "form1"
+            };
+            var claims = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "1")
+            }));
+            var form = new Form
+            {
+                Id = "form1",
+                Status = FormStatus.Published,
+                Questions = new List<Question>
+                {
+                    new Question
+                    {
+                        QuestionId = "q1",
+                        QuestionText = "Upload Document",
+                        Required = true,
+                        Type = "file_upload"
+                    }
+                }
+            };
+            _formRepositoryMock.Setup(x => x.GetById("form1")).Returns(form);
+
+            // Act
+            var result = _responseManager.SubmitResponse(dto, claims);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("File upload for 'Upload Document' is required", result.Message);
+        }
+
         #endregion
 
         #region GetPublishedForms Additional Tests
@@ -739,9 +951,10 @@ namespace FormBuilder.API.Tests.Business
             var result = _responseManager.GetPublishedForms();
 
             // Assert
-            Assert.NotNull(result);
-            Assert.Single(result);
-            Assert.Equal(createdDate, result[0].CreatedAt);
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            Assert.Single(result.Data.Data);
+            Assert.Equal(createdDate, result.Data.Data[0].CreatedAt);
         }
 
         [Fact]
@@ -774,7 +987,8 @@ namespace FormBuilder.API.Tests.Business
             var result = _responseManager.GetPublishedForms();
 
             // Assert
-            Assert.Null(result[0].Questions[0].Description);
+            Assert.True(result.Success);
+            Assert.Null(result.Data.Data[0].Questions[0].Description);
         }
 
         [Fact]
@@ -807,7 +1021,220 @@ namespace FormBuilder.API.Tests.Business
             var result = _responseManager.GetPublishedForms();
 
             // Assert
-            Assert.Equal("This should appear", result[0].Questions[0].Description);
+            Assert.True(result.Success);
+            Assert.Equal("This should appear", result.Data.Data[0].Questions[0].Description);
+        }
+
+        [Fact]
+        public void GetPublishedForms_WithSearchTerm_FiltersResults()
+        {
+            // Arrange
+            var forms = new List<Form>
+            {
+                new Form
+                {
+                    Id = "form1",
+                    Title = "Feedback Form",
+                    Description = "Customer feedback",
+                    Status = FormStatus.Published,
+                    Questions = new List<Question>()
+                },
+                new Form
+                {
+                    Id = "form2",
+                    Title = "Survey Form",
+                    Description = "Annual survey",
+                    Status = FormStatus.Published,
+                    Questions = new List<Question>()
+                }
+            };
+            _formRepositoryMock.Setup(x => x.GetByStatus(FormStatus.Published)).Returns(forms);
+
+            // Act
+            var result = _responseManager.GetPublishedForms(1, 10, "feedback");
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+        }
+
+        [Fact]
+        public void GetPublishedForms_ExceptionThrown_ReturnsFailure()
+        {
+            // Arrange
+            _formRepositoryMock.Setup(x => x.GetByStatus(FormStatus.Published))
+                .Throws(new Exception("Database error"));
+
+            // Act
+            var result = _responseManager.GetPublishedForms();
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("Error retrieving published forms", result.Message);
+            Assert.Null(result.Data);
+        }
+
+        #endregion
+
+        #region GetResponsesByForm Tests
+
+        [Fact]
+        public void GetResponsesByForm_ValidFormId_ReturnsSuccess()
+        {
+            // Arrange
+            var responses = new List<Response>
+            {
+                new Response
+                {
+                    Id = 1,
+                    FormId = "form1",
+                    UserId = 1,
+                    SubmittedAt = DateTime.UtcNow,
+                    Details = new List<ResponseDetail>(),
+                    User = new User 
+                    { 
+                        Id = 1, 
+                        Name = "Test User", 
+                        Email = "test@example.com",
+                        PasswordHash = "hashed_password", // Add required property
+                        Role = "Learner" // Add required property
+                    }
+                }
+            };
+            _responseRepositoryMock.Setup(x => x.GetByFormId("form1")).Returns(responses);
+
+            // Act
+            var result = _responseManager.GetResponsesByForm("form1");
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal("Responses retrieved successfully", result.Message);
+            Assert.NotNull(result.Data);
+        }
+
+        [Fact]
+        public void GetResponsesByForm_WithSearchTerm_FiltersResults()
+        {
+            // Arrange
+            var responses = new List<Response>
+            {
+                new Response
+                {
+                    Id = 1,
+                    FormId = "form1",
+                    UserId = 1,
+                    User = new User 
+                    { 
+                        Name = "John Doe", 
+                        Email = "john@example.com",
+                        PasswordHash = "hashed_password", // Add required property
+                        Role = "Learner" // Add required property
+                    },
+                    Details = new List<ResponseDetail>
+                    {
+                        new ResponseDetail { QuestionId = "q1", Answer = "test answer" }
+                    }
+                }
+            };
+            _responseRepositoryMock.Setup(x => x.GetByFormId("form1")).Returns(responses);
+
+            // Act
+            var result = _responseManager.GetResponsesByForm("form1", 1, 10, "john");
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+        }
+
+        [Fact]
+        public void GetResponsesByForm_ExceptionThrown_ReturnsFailure()
+        {
+            // Arrange
+            _responseRepositoryMock.Setup(x => x.GetByFormId("form1"))
+                .Throws(new Exception("Database error"));
+
+            // Act
+            var result = _responseManager.GetResponsesByForm("form1");
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("Error retrieving responses", result.Message);
+        }
+
+        #endregion
+
+        #region GetResponseById Tests
+
+        [Fact]
+        public void GetResponseById_ExistingResponse_ReturnsSuccess()
+        {
+            // Arrange
+            var response = new Response { Id = 1, FormId = "form1" };
+            _responseRepositoryMock.Setup(x => x.GetById("1")).Returns(response);
+
+            // Act
+            var result = _responseManager.GetResponseById("1");
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal("Response retrieved successfully", result.Message);
+            Assert.Equal(response, result.Data);
+        }
+
+        [Fact]
+        public void GetResponseById_NonExistentResponse_ReturnsFailure()
+        {
+            // Arrange
+            _responseRepositoryMock.Setup(x => x.GetById("999")).Returns((Response)null);
+
+            // Act
+            var result = _responseManager.GetResponseById("999");
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Response not found", result.Message);
+            Assert.Null(result.Data);
+        }
+
+        #endregion
+
+        #region GetFileAttachment Tests
+
+        [Fact]
+        public void GetFileAttachment_FileExists_ReturnsSuccess()
+        {
+            // Arrange
+            var file = new FileAttachment
+            {
+                Id = 1,
+                FileName = "test.pdf",
+                FileType = "application/pdf",
+                Base64Content = "base64content"
+            };
+            _fileAttachmentRepositoryMock.Setup(x => x.GetByResponseAndQuestion(1, "q1")).Returns(file);
+
+            // Act
+            var result = _responseManager.GetFileAttachment(1, "q1");
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal("File retrieved successfully", result.Message);
+            Assert.Equal(file, result.Data);
+        }
+
+        [Fact]
+        public void GetFileAttachment_FileNotFound_ReturnsFailure()
+        {
+            // Arrange
+            _fileAttachmentRepositoryMock.Setup(x => x.GetByResponseAndQuestion(1, "q1")).Returns((FileAttachment)null);
+
+            // Act
+            var result = _responseManager.GetFileAttachment(1, "q1");
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("File not found", result.Message);
+            Assert.Null(result.Data);
         }
 
         #endregion

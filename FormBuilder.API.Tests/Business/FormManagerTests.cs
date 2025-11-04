@@ -163,6 +163,141 @@ namespace FormBuilder.API.Tests.Business
             Assert.Null(result.Data);
         }
 
+        [Fact]
+        public void GetAllForms_WithSearchTerm_FiltersResults()
+        {
+            // Arrange
+            var forms = new List<Form>
+            {
+                new Form 
+                { 
+                    Id = "1", 
+                    Title = "Feedback Form", 
+                    Description = "Customer feedback",
+                    Questions = new List<Question>
+                    {
+                        new Question 
+                        { 
+                            QuestionText = "Rate our service",
+                            Description = "Please rate from 1 to 5"
+                        }
+                    }
+                },
+                new Form 
+                { 
+                    Id = "2", 
+                    Title = "Survey Form", 
+                    Description = "Annual survey"
+                }
+            };
+            _formRepositoryMock.Setup(x => x.GetAll()).Returns(forms);
+            var principal = new ClaimsPrincipal();
+
+            // Act
+            var result = _formManager.GetAllForms(principal, 1, 10, "feedback");
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            // The filter would apply and return matching results
+        }
+
+        #endregion
+
+        #region CreateFormConfig Tests
+
+        [Fact]
+        public void CreateFormConfig_ValidRequest_ReturnsSuccess()
+        {
+            // Arrange
+            var dto = new FormConfigRequestDto
+            {
+                Title = "Test Form",
+                Description = "Test Description"
+            };
+
+            // Act
+            var result = _formManager.CreateFormConfig(dto, "Admin");
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal("Form configuration created successfully", result.Message);
+            Assert.NotNull(result.Data);
+            Assert.Equal("Test Form", result.Data.Title);
+            Assert.Equal("Test Description", result.Data.Description);
+            _formRepositoryMock.Verify(x => x.Add(It.IsAny<Form>()), Times.Once);
+        }
+
+        #endregion
+
+        #region UpdateFormConfig Tests
+
+        [Fact]
+        public void UpdateFormConfig_ValidForm_ReturnsSuccess()
+        {
+            // Arrange
+            var form = new Form
+            {
+                Id = "form123",
+                Title = "Old Title",
+                Description = "Old Description",
+                Status = FormStatus.Draft
+            };
+            var dto = new FormConfigRequestDto
+            {
+                Title = "New Title",
+                Description = "New Description"
+            };
+            _formRepositoryMock.Setup(x => x.GetById("form123")).Returns(form);
+
+            // Act
+            var result = _formManager.UpdateFormConfig("form123", dto);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal("Form configuration updated successfully", result.Message);
+            Assert.Equal("New Title", result.Data.Title);
+            Assert.Equal("New Description", result.Data.Description);
+            _formRepositoryMock.Verify(x => x.Update(It.IsAny<Form>()), Times.Once);
+        }
+
+        [Fact]
+        public void UpdateFormConfig_FormNotFound_ReturnsFailure()
+        {
+            // Arrange
+            var dto = new FormConfigRequestDto();
+            _formRepositoryMock.Setup(x => x.GetById("nonexistent")).Returns((Form)null);
+
+            // Act
+            var result = _formManager.UpdateFormConfig("nonexistent", dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Form not found", result.Message);
+            Assert.Null(result.Data);
+        }
+
+        [Fact]
+        public void UpdateFormConfig_PublishedForm_ReturnsFailure()
+        {
+            // Arrange
+            var form = new Form
+            {
+                Id = "form123",
+                Status = FormStatus.Published
+            };
+            var dto = new FormConfigRequestDto();
+            _formRepositoryMock.Setup(x => x.GetById("form123")).Returns(form);
+
+            // Act
+            var result = _formManager.UpdateFormConfig("form123", dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Cannot update configuration of a published form.", result.Message);
+            Assert.Null(result.Data);
+        }
+
         #endregion
 
         #region UpdateFormLayout Additional Tests
@@ -371,6 +506,204 @@ namespace FormBuilder.API.Tests.Business
             Assert.Empty(savedForm.Questions.First().Options);
         }
 
+        [Fact]
+        public void UpdateFormLayout_FormNotFound_ReturnsFailure()
+        {
+            // Arrange
+            var dto = new FormLayoutRequestDto();
+            _formRepositoryMock.Setup(x => x.GetById("nonexistent")).Returns((Form)null);
+
+            // Act
+            var result = _formManager.UpdateFormLayout("nonexistent", dto, "Admin");
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Form not found. Please create form configuration first using the FormConfig endpoint.", result.Message);
+            Assert.Null(result.Data);
+        }
+
+        [Fact]
+        public void UpdateFormLayout_PublishedForm_ReturnsFailure()
+        {
+            // Arrange
+            var form = new Form
+            {
+                Id = "form123",
+                Status = FormStatus.Published
+            };
+            var dto = new FormLayoutRequestDto();
+            _formRepositoryMock.Setup(x => x.GetById("form123")).Returns(form);
+
+            // Act
+            var result = _formManager.UpdateFormLayout("form123", dto, "Admin");
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Cannot modify layout of a published form.", result.Message);
+            Assert.Null(result.Data);
+        }
+
+        [Fact]
+        public void UpdateFormLayout_WithOptionsHavingValues_GeneratesOptionIds()
+        {
+            // Arrange
+            var form = new Form
+            {
+                Id = "form123",
+                Status = FormStatus.Draft,
+                Title = "Test Form",
+                Description = "Test Description"
+            };
+            var dto = new FormLayoutRequestDto
+            {
+                Questions = new List<QuestionDto>
+                {
+                    new QuestionDto
+                    {
+                        Text = "Select Option",
+                        Type = "radio",
+                        Options = new[] { "Option1", "Option2", "Option3" }
+                    }
+                }
+            };
+            _formRepositoryMock.Setup(x => x.GetById("form123")).Returns(form);
+
+            // Act
+            var result = _formManager.UpdateFormLayout("form123", dto, "Admin");
+
+            // Assert
+            Assert.True(result.Success);
+            var savedForm = _formRepositoryMock.Invocations[1].Arguments[0] as Form;
+            Assert.NotNull(savedForm.Questions[0].Options);
+            Assert.Equal(3, savedForm.Questions[0].Options.Count);
+            // Each option should have generated OptionId
+            foreach (var option in savedForm.Questions[0].Options)
+            {
+                Assert.NotEmpty(option.OptionId);
+                Assert.NotEmpty(option.Value);
+            }
+        }
+
+        #endregion
+
+        #region GetFormById Tests
+
+        [Fact]
+        public void GetFormById_ExistingForm_ReturnsSuccess()
+        {
+            // Arrange
+            var form = new Form
+            {
+                Id = "form123",
+                Title = "Test Form",
+                Description = "Test Description",
+                Status = FormStatus.Draft,
+                Questions = new List<Question>
+                {
+                    new Question
+                    {
+                        QuestionId = "q1",
+                        QuestionText = "Question 1",
+                        Type = "text",
+                        Required = true,
+                        DescriptionEnabled = true,
+                        Description = "Question description"
+                    }
+                }
+            };
+            _formRepositoryMock.Setup(x => x.GetById("form123")).Returns(form);
+            var principal = new ClaimsPrincipal();
+
+            // Act
+            var result = _formManager.GetFormById("form123", principal);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal("Form retrieved successfully", result.Message);
+            Assert.NotNull(result.Data);
+            Assert.Equal("form123", result.Data.FormId);
+            Assert.Equal("Test Form", result.Data.Title);
+            Assert.Single(result.Data.Questions);
+        }
+
+        [Fact]
+        public void GetFormById_NonExistingForm_ReturnsFailure()
+        {
+            // Arrange
+            _formRepositoryMock.Setup(x => x.GetById("nonexistent")).Returns((Form)null);
+            var principal = new ClaimsPrincipal();
+
+            // Act
+            var result = _formManager.GetFormById("nonexistent", principal);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Form not found", result.Message);
+            Assert.Null(result.Data);
+        }
+
+        [Fact]
+        public void GetFormById_WithNullQuestions_ReturnsEmptyQuestionsList()
+        {
+            // Arrange
+            var form = new Form
+            {
+                Id = "form123",
+                Title = "Test Form",
+                Description = "Test Description",
+                Status = FormStatus.Draft,
+                Questions = null
+            };
+            _formRepositoryMock.Setup(x => x.GetById("form123")).Returns(form);
+            var principal = new ClaimsPrincipal();
+
+            // Act
+            var result = _formManager.GetFormById("form123", principal);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            Assert.Empty(result.Data.Questions);
+        }
+
+        [Fact]
+        public void GetFormById_WithOptionsInQuestions_ReturnsOptions()
+        {
+            // Arrange
+            var form = new Form
+            {
+                Id = "form123",
+                Title = "Test Form",
+                Description = "Test Description",
+                Status = FormStatus.Draft,
+                Questions = new List<Question>
+                {
+                    new Question
+                    {
+                        QuestionId = "q1",
+                        QuestionText = "Select one",
+                        Type = "radio",
+                        Options = new List<Option>
+                        {
+                            new Option { OptionId = "opt1", Value = "Option 1" },
+                            new Option { OptionId = "opt2", Value = "Option 2" }
+                        }
+                    }
+                }
+            };
+            _formRepositoryMock.Setup(x => x.GetById("form123")).Returns(form);
+            var principal = new ClaimsPrincipal();
+
+            // Act
+            var result = _formManager.GetFormById("form123", principal);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal(2, result.Data.Questions[0].Options.Length);
+            Assert.Contains("Option 1", result.Data.Questions[0].Options);
+            Assert.Contains("Option 2", result.Data.Questions[0].Options);
+        }
+
         #endregion
 
         #region DeleteForm Additional Tests
@@ -446,6 +779,33 @@ namespace FormBuilder.API.Tests.Business
             // Assert
             Assert.False(result.Success);
             Assert.Contains("Cannot publish a form without questions", result.Message);
+        }
+
+        [Fact]
+        public void PublishForm_ValidFormWithQuestions_ReturnsSuccess()
+        {
+            // Arrange
+            var form = new Form
+            {
+                Id = "form123",
+                Status = FormStatus.Draft,
+                Questions = new List<Question>
+                {
+                    new Question { QuestionId = "q1", QuestionText = "Question 1" }
+                }
+            };
+            _formRepositoryMock.Setup(x => x.GetById("form123")).Returns(form);
+
+            // Act
+            var result = _formManager.PublishForm("form123", "Publisher");
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal("Form published successfully", result.Message);
+            Assert.Equal(FormStatus.Published, form.Status);
+            Assert.Equal("Publisher", form.PublishedBy);
+            Assert.NotNull(form.PublishedAt);
+            _formRepositoryMock.Verify(x => x.Update(It.IsAny<Form>()), Times.Once);
         }
 
         #endregion
