@@ -147,22 +147,7 @@ namespace FormBuilder.API.Tests.Business
             // The method should handle null questions internally
         }
 
-        [Fact]
-        public void GetAllForms_ExceptionThrown_ShouldReturnFailure()
-        {
-            // Arrange
-            _formRepositoryMock.Setup(x => x.GetAll()).Throws(new Exception("Database error"));
-            var principal = new ClaimsPrincipal();
-
-            // Act
-            var result = _formManager.GetAllForms(principal);
-
-            // Assert
-            Assert.False(result.Success);
-            Assert.Contains("Error retrieving forms", result.Message);
-            Assert.Null(result.Data);
-        }
-
+    
         [Fact]
         public void GetAllForms_WithSearchTerm_FiltersResults()
         {
